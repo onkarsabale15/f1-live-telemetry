@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String?
+  image         String?
+  googleId      String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  settings      UserSettings?
+  bookmarks     UserBookmark[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteDriver Int?     // e.g. 4 for Norris, 1 for Verstappen, 44 for Hamilton
+  favoriteTeam   String?  // e.g. "McLaren", "Ferrari", "Red Bull"
+  speedUnit      String   @default("KMH") // "KMH" or "MPH"
+  soundAlerts    Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+model UserBookmark {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionKey Int      // OpenF1 session_key (e.g. 9590 for Monza 2024)
+  raceName   String   // e.g. "Italian Grand Prix - Monza"
+  timestamp  Float    // Race time offset
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@map("user_bookmarks")
+}
+
+// ---------------------------------------------------------------------------
+// Telemetry archive: every raw OpenF1 sample for a session, persisted once so
+// replay/scrub never needs to re-hit the rate-limited OpenF1 API. A session is
+// ingested in full the first time anyone loads it for replay; after that,
+// "at time T" snapshots are served with a DISTINCT ON query straight from
+// Postgres — no external requests, no rate limit, and fine enough resolution
+// to stream near-continuously instead of only every 7.5s.
+// ---------------------------------------------------------------------------
+
+enum IngestStatus {
+  NONE
+  IN_PROGRESS
+  COMPLETE
+  FAILED
+}
+
+enum TyreCompound {
+  SOFT
+  MEDIUM
+  HARD
+  INTERMEDIATE
+  WET
+  UNKNOWN
+}
+
+// A physical circuit's identity never changes race to race — keyed by
+// OpenF1's circuit_key, shared across every session ever held there instead
+// of being re-copied onto each one.
+model Circuit {
+  circuitKey       Int           @id @map("circuit_key")
+  circuitShortName String        @map("circuit_short_name")
+  countryName      String        @map("country_name")
+  location         String
+  sessions         RaceSession[]
+
+  @@map("circuits")
+}
+
+// A driver's bio (name, country, headshot) is stable for the season — keyed
+// by their permanent race number, which is a real, stable identity per F1's
+// own numbering rules (not something this schema invents). What genuinely
+// varies weekend to weekend — team, livery colour — lives on SessionDriver
+// below, so a reserve driver standing in for an injured regular shows up
+// correctly as their own Driver row with their own SessionDriver entry for
+// just that session, without corrupting the regular driver's record.
+model Driver {
+  driverNumber   Int             @id @map("driver_number")
+  broadcastName  String          @map("broadcast_name")
+  fullName       String          @map("full_name")
+  nameAcronym    String          @map("name_acronym")
+  countryCode    String          @map("country_code")
+  headshotUrl    String?         @map("headshot_url")
+  sessionDrivers SessionDriver[]
+
+  @@map("drivers")
+}
+
+// The genuinely per-session fact: who raced, for which team, that weekend.
+model SessionDriver {
+  sessionKey   Int         @map("session_key")
+  driverNumber Int         @map("driver_number")
+  teamName     String      @map("team_name")
+  teamColour   String      @map("team_colour")
+  session      RaceSession @relation(fields: [sessionKey], references: [sessionKey], onDelete: Cascade)
+  driver       Driver      @relation(fields: [driverNumber], references: [driverNumber])
+
+  @@id([sessionKey, driverNumber])
+  @@map("session_drivers")
+}
+
+model RaceSession {
+  sessionKey     Int             @id @map("session_key")
+  sessionName    String          @map("session_name")
+  sessionType    String          @map("session_type")
+  circuitKey     Int             @map("circuit_key")
+  circuit        Circuit         @relation(fields: [circuitKey], references: [circuitKey])
+  year           Int
+  meetingKey     Int             @map("meeting_key")
+  dateStart      DateTime        @map("date_start")
+  dateEnd        DateTime        @map("date_end")
+  hasGapData     Boolean         @default(false) @map("has_gap_data")
+  hasDrs         Boolean         @default(true) @map("has_drs") // false from 2026 onward (Manual Override replaces DRS)
+  trackPath      Json            @map("track_path") // TrackReferencePoint[] — reference circuit shape
+  sessionDrivers SessionDriver[]
+  sessionStartMs BigInt?         @map("session_start_ms") // real recorded start (ms epoch), for the scrub timeline
+  sessionEndMs   BigInt?         @map("session_end_ms")   // real recorded end (ms epoch)
+  ingestStatus   IngestStatus    @default(NONE) @map("ingest_status")
+  ingestProgress Int             @default(0) @map("ingest_progress") // 0-100, coarse progress for the loading UI
+  ingestError    String?         @map("ingest_error")
+  ingestedAt     DateTime?       @map("ingested_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@map("race_sessions")
+}
+
+model CarLocationSample {
+  id           BigInt   @id @default(autoincrement())
+  sessionKey   Int      @map("session_key")
+  driverNumber Int      @map("driver_number")
+  date         DateTime
+  x            Float
+  y            Float
+  z            Float
+
+  @@index([sessionKey, driverNumber, date])
+  @@map("car_location_samples")
+}
+
+model CarTelemetrySample {
+  id           BigInt   @id @default(autoincrement())
+  sessionKey   Int      @map("session_key")
+  driverNumber Int      @map("driver_number")
+  date         DateTime
+  speed        Int
+  rpm          Int
+  gear         Int
+  throttle     Int
+  brake        Int
+  drs          Int
+
+  @@index([sessionKey, driverNumber, date])
+  @@map("car_telemetry_samples")
+}
+
+model IntervalSample {
+  id           BigInt   @id @default(autoincrement())
+  sessionKey   Int      @map("session_key")
+  driverNumber Int      @map("driver_number")
+  date         DateTime
+  interval     Float?
+  gapToLeader  Float?   @map("gap_to_leader")
+
+  @@index([sessionKey, driverNumber, date])
+  @@map("interval_samples")
+}
+
+model PositionSample {
+  id           BigInt   @id @default(autoincrement())
+  sessionKey   Int      @map("session_key")
+  driverNumber Int      @map("driver_number")
+  date         DateTime
+  position     Int
+
+  @@index([sessionKey, driverNumber, date])
+  @@map("position_samples")
+}
+
+model StintRecord {
+  id             BigInt       @id @default(autoincrement())
+  sessionKey     Int          @map("session_key")
+  driverNumber   Int          @map("driver_number")
+  stintNumber    Int          @map("stint_number")
+  compound       TyreCompound
+  lapStart       Int          @map("lap_start")
+  lapEnd         Int?         @map("lap_end")
+  tyreAgeAtStart Int          @default(0) @map("tyre_age_at_start")
+
+  @@index([sessionKey, driverNumber])
+  @@map("stint_records")
+}
+
+model LapRecord {
+  id            BigInt    @id @default(autoincrement())
+  sessionKey    Int       @map("session_key")
+  driverNumber  Int       @map("driver_number")
+  lapNumber     Int       @map("lap_number")
+  dateStart     DateTime? @map("date_start")
+  lapDuration   Float?    @map("lap_duration")
+  sector1       Float?
+  sector2       Float?
+  sector3       Float?
+  isPitOutLap   Boolean   @default(false) @map("is_pit_out_lap")
+
+  @@index([sessionKey, driverNumber, lapNumber])
+  @@map("lap_records")
+}
+
+model PitStopRecord {
+  id           BigInt    @id @default(autoincrement())
+  sessionKey   Int       @map("session_key")
+  driverNumber Int       @map("driver_number")
+  lapNumber    Int       @map("lap_number")
+  date         DateTime?
+  pitDuration  Float?    @map("pit_duration")
+
+  @@index([sessionKey, driverNumber])
+  @@map("pit_stop_records")
+}
+
+model RaceControlMessage {
+  id           BigInt    @id @default(autoincrement())
+  sessionKey   Int       @map("session_key")
+  date         DateTime
+  category     String
+  flag         String?
+  scope        String?
+  sector       Int?
+  driverNumber Int?      @map("driver_number")
+  lapNumber    Int?      @map("lap_number")
+  message      String
+
+  @@index([sessionKey, date])
+  @@map("race_control_messages")
+}

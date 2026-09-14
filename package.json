@@ -1,0 +1,18 @@
+{
+  "name": "f1-live-telemetry-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "F1 Live Telemetry, Track Tracking & Overtake Predictor System",
+  "scripts": {
+    "test": "node tests/e2e/run-all.js",
+    "test:e2e": "node tests/e2e/run-all.js",
+    "test:tier1": "node tests/e2e/run-all.js --tier=1",
+    "test:tier2": "node tests/e2e/run-all.js --tier=2",
+    "test:tier3": "node tests/e2e/run-all.js --tier=3",
+    "test:tier4": "node tests/e2e/run-all.js --tier=4",
+    "test:tier5": "node tests/e2e/run-all.js --tier=5"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

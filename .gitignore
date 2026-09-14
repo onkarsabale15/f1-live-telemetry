@@ -1,0 +1,66 @@
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+.pnp
+.pnp.js
+
+# ==========================================
+# Environment variables — never commit real secrets.
+# Only .env.example (a template with placeholder values) is tracked.
+# ==========================================
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+!.env.example
+
+# ==========================================
+# Build output
+# ==========================================
+backend/dist/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# ==========================================
+# Logs
+# ==========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# Testing
+# ==========================================
+coverage/
+tests/e2e/results/
+tests/e2e/screenshots/
+playwright-report/
+test-results/
+
+# ==========================================
+# Editor / OS
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# Prisma
+# ==========================================
+backend/prisma/*.db
+backend/prisma/migrations/dev/
+
+# ==========================================
+# Agent/tooling scratch state — not part of the application
+# ==========================================
+.agents/
+.claude/scheduled_tasks.lock
