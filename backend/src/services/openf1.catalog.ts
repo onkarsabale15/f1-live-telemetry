@@ -1,3 +1,12 @@
+/**
+ * Static fallback race-weekend catalog (2023-2026 season calendars, Race
+ * sessions only), used when OpenF1's own `/sessions` listing is unreachable
+ * or rate-limited — e.g. so Match Explorer still has something to show, and
+ * `session_key` lookups for known sessions still resolve, without an API
+ * round trip. Sourced from OpenF1's published calendars at the time this
+ * was written; not auto-updated, so a mid-season calendar change (reschedule,
+ * new venue) won't be reflected here until this file is refreshed.
+ */
 export interface CatalogSession {
   session_key: number;
   session_name: string;
@@ -906,6 +915,7 @@ export const CATALOG_SESSIONS_2023: CatalogSession[] = [
   }
 ];
 
+/** Returns the fallback catalog's Race sessions for a season, or `[]` for a year not covered. */
 export function getCatalogSessionsForYear(year: number): CatalogSession[] {
   if (year === 2026) return CATALOG_SESSIONS_2026;
   if (year === 2025) return CATALOG_SESSIONS_2025;
@@ -914,6 +924,7 @@ export function getCatalogSessionsForYear(year: number): CatalogSession[] {
   return [];
 }
 
+/** Looks up a single fallback-catalog session by its OpenF1 session_key, across all covered seasons. */
 export function getCatalogSessionByKey(sessionKey: number): CatalogSession | null {
   const all = [...CATALOG_SESSIONS_2026, ...CATALOG_SESSIONS_2025, ...CATALOG_SESSIONS_2024, ...CATALOG_SESSIONS_2023];
   return all.find((s) => s.session_key === sessionKey) || null;

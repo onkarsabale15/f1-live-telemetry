@@ -109,6 +109,12 @@ const PredictedTyreCard: React.FC<{ prediction: PredictedTyreChange | null; team
   );
 };
 
+/**
+ * On-demand 2-driver comparison modal — pick two drivers and click Compare
+ * to fetch pace, stint, and predicted-tyre-change data as of the current
+ * replay/live lap. Unlike LiveComparisonPanel this doesn't auto-refresh;
+ * each click is a fresh snapshot "as of when you clicked".
+ */
 export const DriverComparison: React.FC<DriverComparisonProps> = ({
   isOpen,
   onClose,

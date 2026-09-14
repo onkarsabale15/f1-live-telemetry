@@ -9,6 +9,14 @@ interface GoogleUser {
   picture?: string;
 }
 
+/**
+ * "Continue with Google" button and modal. Currently a mocked sign-in for
+ * demo purposes — it doesn't call Google's real OAuth flow, just fabricates
+ * a user object and POSTs it to the backend's `/api/auth/google` upsert
+ * endpoint so the rest of the auth/settings plumbing has something to work
+ * with. Wiring real NextAuth + Google OAuth would replace
+ * `handleSimulateGoogleLogin`'s body with an actual `signIn('google')` call.
+ */
 export const GoogleAuthWidget: React.FC = () => {
   // Client state for Google Authentication
   const [currentUser, setCurrentUser] = useState<GoogleUser | null>(null);

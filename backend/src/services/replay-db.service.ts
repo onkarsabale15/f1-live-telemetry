@@ -30,6 +30,7 @@ export class ReplayDbService {
   private notIngestedCacheExpiry = new Map<number, number>();
   private static readonly NOT_INGESTED_CACHE_MS = 10_000;
 
+  /** Raw archival status/progress for a session, or `null` if it's never been seen before. */
   public async getIngestStatus(sessionKey: number): Promise<{ status: string; progress: number } | null> {
     const prisma = getPrismaClient();
     if (!prisma) return null;
@@ -41,6 +42,7 @@ export class ReplayDbService {
     return { status: row.ingestStatus, progress: row.ingestProgress };
   }
 
+  /** Whether a session is fully archived and safe to serve from Postgres alone — see the field comments above for the caching strategy. */
   public async isFullyIngested(sessionKey: number): Promise<boolean> {
     if (this.ingestedCache.has(sessionKey)) return true;
 

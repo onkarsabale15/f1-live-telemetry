@@ -38,6 +38,13 @@ const SEEK_DEBOUNCE_MS = 300;
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
+/**
+ * Socket.IO gateway — owns per-connection replay state (see `ReplayState` in
+ * event.types.ts) so each browser tab can independently browse a different
+ * session and scrub position, while every socket watching a genuinely live
+ * session shares one broadcast (the 'live' room) fed by the single
+ * `simulationEngine` poll loop.
+ */
 export class F1WebSocketGateway {
   private io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
@@ -60,6 +67,7 @@ export class F1WebSocketGateway {
     this.setupRedisSubscriber();
   }
 
+  /** Shapes a socket's ReplayState into the PlaybackState the frontend expects. */
   private buildPlaybackState(replay: ReplayState): any {
     const totalLaps = replay.lapsCache.reduce((max: number, l: any) => Math.max(max, l.lap_number || 0), 0);
     return {
@@ -75,6 +83,7 @@ export class F1WebSocketGateway {
     };
   }
 
+  /** Clears a socket's replay ticker and pending seek-debounce timer, if any — called before loading a new session and on disconnect. */
   private clearTimers(socket: AppSocket): void {
     if (socket.data.tickTimer) clearInterval(socket.data.tickTimer);
     if (socket.data.seekDebounceTimer) clearTimeout(socket.data.seekDebounceTimer);
@@ -106,6 +115,7 @@ export class F1WebSocketGateway {
     }
   }
 
+  /** Starts (restarting if one is already running) this socket's own 1-second replay tick — independent of every other connection's. */
   private startTicker(socket: AppSocket): void {
     if (socket.data.tickTimer) clearInterval(socket.data.tickTimer);
     socket.data.tickTimer = setInterval(() => {
@@ -259,6 +269,7 @@ export class F1WebSocketGateway {
     }
   }
 
+  /** Registers the connection handler and every client-to-server event listener (load_session, playback_control, driver subscribe/unsubscribe). */
   private setupListeners(): void {
     this.io.on('connection', (socket: AppSocket) => {
       console.log(`🔌 Client connected: ${socket.id}`);
@@ -410,6 +421,7 @@ export class F1WebSocketGateway {
     });
   }
 
+  /** Exposes the underlying Socket.IO server instance, e.g. for tests. */
   public getIO() {
     return this.io;
   }

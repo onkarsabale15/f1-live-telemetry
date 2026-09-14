@@ -6,6 +6,14 @@ import { RaceSnapshot, DriverLiveState, SessionMeta, DriverInfo, PlaybackState }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
+/**
+ * Owns this tab's Socket.IO connection and everything session-shaped that
+ * flows over it — session metadata, driver roster, playback state, the
+ * latest grid snapshot, and the focused driver's telemetry. Each browser
+ * tab gets its own connection and its own server-side replay state (see
+ * backend's socket.server.ts), so calling `loadSession()` here never
+ * affects any other open tab.
+ */
 export function useF1Socket() {
   const [isConnected, setIsConnected] = useState(false);
   const [sessionMeta, setSessionMeta] = useState<SessionMeta | null>(null);
@@ -92,6 +100,7 @@ export function useF1Socket() {
     }
   }, [focusedDriverNumber]);
 
+  /** Focuses the cockpit telemetry panel on a different driver and re-subscribes this socket's driver room. */
   const selectDriver = useCallback((driverNumber: number) => {
     setFocusedDriverNumber(driverNumber);
     focusedDriverNumberRef.current = driverNumber;
@@ -100,6 +109,7 @@ export function useF1Socket() {
     }
   }, []);
 
+  /** Sends a play/pause/seek (and optional speed change) for this tab's own replay position — a no-op server-side while watching a live session. */
   const sendPlaybackControl = useCallback((action: 'play' | 'pause' | 'seek', speed?: 1 | 2 | 4, progress?: number) => {
     if (socketRef.current) {
       socketRef.current.emit('client:v1:playback_control', { action, speed, progress });

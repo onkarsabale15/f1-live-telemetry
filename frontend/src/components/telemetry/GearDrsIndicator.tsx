@@ -13,6 +13,7 @@ interface GearDrsProps {
   hasDrs?: boolean;
 }
 
+/** Current gear, DRS/Override status, and tyre compound+age for the focused driver — labels adapt via getOvertakeAidLabels for pre/post-2026 regulations. */
 export const GearDrsIndicator: React.FC<GearDrsProps> = ({ gear, drs, compound, tyreAge, hasDrs = true }) => {
   const tyreBadge = getTyreBadge(compound);
   const gearDisplay = gear <= 0 ? 'R' : gear;

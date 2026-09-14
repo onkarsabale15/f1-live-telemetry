@@ -1,6 +1,6 @@
 import { TyreCompound, CircuitBounds, TrackReferencePoint } from './models';
 
-// Tyre compound relative pace offset (seconds per lap theoretical advantage)
+/** Tyre compound relative pace offset, in seconds per lap of theoretical advantage over HARD. */
 export const COMPOUND_PACE_RANK: Record<TyreCompound, number> = {
   SOFT: 0.8,
   MEDIUM: 0.4,
@@ -10,14 +10,20 @@ export const COMPOUND_PACE_RANK: Record<TyreCompound, number> = {
   UNKNOWN: 0.0,
 };
 
-// Sigmoid squashing function
+/** Standard logistic squashing function, mapping any real number into (0, 1). */
 export function sigmoid(z: number): number {
   return 1 / (1 + Math.exp(-z));
 }
 
 /**
- * Calculates closing rate (seconds gained per lap) between chaser and defender
- * Protects against gap <= 0, division by zero, and non-finite values.
+ * Calculates closing rate (seconds gained per lap) between chaser and
+ * defender. Protects against gap <= 0, division by zero, and non-finite
+ * values, and clamps to a physically plausible range.
+ * @param previousGap Interval-to-ahead (seconds) at the start of the sample window
+ * @param currentGap Interval-to-ahead (seconds) now
+ * @param timeDiffSeconds Elapsed time between the two samples
+ * @param typicalLapTimeSeconds Reference lap time used to scale the per-window delta into a per-lap rate
+ * @returns Seconds gained per lap (positive = chaser closing), clamped to ±15
  */
 export function calculateClosingRate(
   previousGap: number,
@@ -148,10 +154,13 @@ export function calculateOvertakeProbability(
   };
 }
 
+/** Alias kept for callers that read better as "predict" than "calculate". */
 export const predictOvertake = calculateOvertakeProbability;
 
 /**
- * Computes bounding box for circuit coordinates
+ * Computes the axis-aligned bounding box of a circuit's traced reference
+ * points, used to scale/center the track on the canvas. Falls back to a
+ * neutral 1000x1000 box when no points are available yet.
  */
 export function computeCircuitBounds(points: TrackReferencePoint[]): CircuitBounds {
   if (!points || points.length === 0) {
@@ -177,7 +186,9 @@ export function computeCircuitBounds(points: TrackReferencePoint[]): CircuitBoun
 }
 
 /**
- * Normalizes raw world track coordinate (x, y) to a standard SVG/Canvas coordinate space [padding, size-padding]
+ * Normalizes a raw world track coordinate (x, y) into canvas/SVG pixel space,
+ * preserving aspect ratio and centering within the given padding.
+ * @returns `{ u, v }` — the pixel-space coordinate (`v` already Y-flipped for canvas' top-left origin)
  */
 export function normalizeTrackCoordinate(
   x: number,

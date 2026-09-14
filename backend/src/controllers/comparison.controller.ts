@@ -75,6 +75,7 @@ function computeSlope(values: number[]): number {
   return den !== 0 ? num / den : 0;
 }
 
+/** Builds one driver's full comparison summary — lap times, best/avg pace, tyre stints, pit stops, and a predicted next tyre change. */
 function computeDriverSummary(laps: any[], stints: any[], pits: any[], currentLap: number, driverNumber: number) {
   const driverLaps = laps
     .filter((l) => l.driver_number === driverNumber && typeof l.lap_duration === 'number' && l.lap_duration > 0)

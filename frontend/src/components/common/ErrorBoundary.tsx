@@ -13,6 +13,12 @@ interface State {
   error: Error | null;
 }
 
+/**
+ * Catches render/lifecycle errors in its subtree and shows a retry UI
+ * instead of taking down the whole dashboard — each major panel is wrapped
+ * in its own instance so one broken widget (e.g. a malformed API response)
+ * doesn't blank the entire page.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,

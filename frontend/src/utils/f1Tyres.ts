@@ -1,5 +1,6 @@
 import { TyreCompound } from '../types/f1';
 
+/** Visual styling (FIA colors, Tailwind classes) for one tyre compound's badge. */
 export interface TyreBadgeStyle {
   code: string;
   name: string;
@@ -10,6 +11,7 @@ export interface TyreBadgeStyle {
   hex: string;
 }
 
+/** Official FIA color/badge styling per tyre compound. */
 export const FIA_TYRE_COMPOUNDS: Record<TyreCompound, TyreBadgeStyle> = {
   SOFT: {
     code: 'S',

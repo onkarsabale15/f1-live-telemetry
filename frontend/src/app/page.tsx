@@ -16,6 +16,13 @@ import { LiveComparisonPanel } from '../components/comparison/LiveComparisonPane
 import { TyreStrategyTimeline } from '../components/strategy/TyreStrategyTimeline';
 import { RaceControlFeed } from '../components/raceControl/RaceControlFeed';
 
+/**
+ * The main dashboard — owns this tab's live socket connection and race
+ * control feed, and lays out every panel (circuit map, overtake radar,
+ * telemetry cockpit, leaderboard, driver comparison, tyre strategy) around
+ * them. Match Explorer and the Driver Comparison modal are rendered here
+ * too, since both need the socket's `loadSession`/session data.
+ */
 export default function F1DashboardPage() {
   const {
     isConnected,

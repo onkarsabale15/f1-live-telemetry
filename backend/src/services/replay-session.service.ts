@@ -17,6 +17,7 @@ import { overtakePredictionService, IntervalHistory } from './prediction.service
  * genuinely shared thing: the live broadcast (see socket.server.ts).
  */
 
+/** The furthest lap number any driver had started by `targetMs`, per the session's cached lap-start timestamps. */
 export function getLapAtTime(lapsCache: any[], targetMs: number): number {
   let maxLap = 0;
   for (const lap of lapsCache) {
@@ -29,6 +30,7 @@ export function getLapAtTime(lapsCache: any[], targetMs: number): number {
   return maxLap;
 }
 
+/** Each driver's active tyre stint (compound + age) as of `currentLap`, picking the latest stint that had already started by then. */
 export function computeStintsAtLap(
   stintsCache: any[],
   currentLap: number

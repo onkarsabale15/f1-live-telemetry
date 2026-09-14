@@ -11,6 +11,11 @@ import { getTyreStrategy } from './controllers/strategy.controller';
 import { getRaceControlFeed } from './controllers/raceControl.controller';
 import { getUserProfile, upsertGoogleUser, updateUserSettings } from './controllers/auth.controller';
 
+/**
+ * Builds the Express app: security headers, CORS, body-size limit, rate
+ * limiting, and every REST route. Socket.IO is wired separately in
+ * server.ts — this only covers the plain HTTP API surface.
+ */
 export function createApp(): express.Application {
   const app = express();
 

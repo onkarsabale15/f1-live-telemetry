@@ -61,6 +61,21 @@ const REQUEST_STAGGER_MS = 500;
 // ~75s at the 2.5s master tick — how often to check for a newer session.
 const SESSION_RECHECK_TICKS = 30;
 
+/**
+ * The single shared engine that tracks whichever F1 session is currently
+ * live and polls OpenF1 for it, publishing snapshots that every "watching
+ * live" client shares (see socket.server.ts's 'live' room) — deliberately
+ * one poll loop for everyone, not one per viewer, since OpenF1's rate limit
+ * is a fixed budget regardless of how many people are watching.
+ *
+ * Historically this class also drove replay/scrub playback for a single
+ * shared "current session," but that responsibility has moved to
+ * replay-session.service.ts's stateless functions plus per-socket state in
+ * socket.server.ts, so two browser tabs can browse two different past races
+ * independently. The playback-control methods below (play/pause/seek/
+ * setSpeed) are kept for reference and no longer called from any route —
+ * per-tab replay reads Postgres directly instead.
+ */
 export class SimulationEngine extends EventEmitter {
   private pollTimer: NodeJS.Timeout | null = null;
   private pollIntervalMs = MASTER_TICK_MS;
@@ -296,6 +311,7 @@ export class SimulationEngine extends EventEmitter {
     return maxLap;
   }
 
+  /** ISO timestamp `windowMs` before the session's real recorded end — the anchor for "final state" queries on a completed session. */
   private getCompletedAnchor(laps: any[], windowMs: number): string {
     return new Date(this.getRealSessionEndMs(laps) - windowMs).toISOString();
   }
@@ -621,6 +637,7 @@ export class SimulationEngine extends EventEmitter {
     return true;
   }
 
+  /** Starts (restarting if already running) the master tiered-polling loop that drives the live feed. */
   private startPolling(): void {
     if (this.pollTimer) clearInterval(this.pollTimer);
     this.pollTimer = setInterval(() => {
@@ -970,6 +987,10 @@ export class SimulationEngine extends EventEmitter {
     }
   }
 
+  // --- Merge helpers: fold a batch of raw OpenF1 rows into the per-driver
+  // state Maps that buildSnapshot() reads from. Each keeps only the latest
+  // value per driver_number. ---
+
   private updateLocations(data: any[]): void {
     for (const loc of data) {
       this.driverLocations.set(loc.driver_number, { x: loc.x, y: loc.y, z: loc.z || 0 });
@@ -1106,6 +1127,7 @@ export class SimulationEngine extends EventEmitter {
   // For a LIVE session these are no-ops (you can't pause or scrub reality);
   // for a completed session they drive the replay/scrub timeline.
 
+  /** @deprecated No longer wired to any route — see the class-level doc comment above. */
   public play(): void {
     if (this.isLive || this.isUpcoming) {
       this.emit('stateChange', this.getPlaybackState());
@@ -1119,12 +1141,14 @@ export class SimulationEngine extends EventEmitter {
     this.startReplayTicker();
   }
 
+  /** @deprecated No longer wired to any route — see the class-level doc comment above. */
   public pause(): void {
     this.isReplayPlaying = false;
     this.stopReplayTicker();
     this.emit('stateChange', this.getPlaybackState());
   }
 
+  /** @deprecated No longer wired to any route — see the class-level doc comment above. */
   public setSpeed(speed: 1 | 2 | 4): void {
     this.replaySpeed = speed;
     this.emit('stateChange', this.getPlaybackState());
@@ -1136,6 +1160,7 @@ export class SimulationEngine extends EventEmitter {
    * after the last move, so dragging across a race doesn't fire dozens of
    * OpenF1 requests. Ignored for live/upcoming sessions — you can't scrub
    * a race that's still happening or hasn't started.
+   * @deprecated No longer wired to any route — see the class-level doc comment above.
    */
   public seek(progressRatio: number): void {
     if (this.isLive || this.isUpcoming) return;
@@ -1162,6 +1187,7 @@ export class SimulationEngine extends EventEmitter {
     }, SEEK_DEBOUNCE_MS);
   }
 
+  /** Current playback/live status for the shared live engine — for a live session this is real-time; the replay fields are vestigial (see class doc comment). */
   public getPlaybackState(): PlaybackState {
     return {
       isPlaying: this.isLive ? true : this.isReplayPlaying,
@@ -1176,7 +1202,9 @@ export class SimulationEngine extends EventEmitter {
     };
   }
 
+  /** Metadata for the session the shared live engine currently has loaded (the live/auto-follow session), or `null` before the first one resolves. */
   public getSessionMeta(): SessionMeta | null { return this.sessionMeta; }
+  /** Driver roster for the shared live engine's currently loaded session. */
   public getDrivers(): DriverInfo[] { return this.drivers; }
 }
 

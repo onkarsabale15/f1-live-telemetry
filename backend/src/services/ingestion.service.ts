@@ -40,6 +40,7 @@ export interface IngestSessionMeta {
 export class IngestionService {
   private activeSessions = new Set<number>();
 
+  /** Whether this process currently has a background ingestion run in flight for `sessionKey`. */
   public isIngesting(sessionKey: number): boolean {
     return this.activeSessions.has(sessionKey);
   }

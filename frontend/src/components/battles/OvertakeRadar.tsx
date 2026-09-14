@@ -12,6 +12,7 @@ interface OvertakeRadarProps {
   onFocusBattle: (driverNumber: number) => void;
 }
 
+/** Lists every currently predicted overtake battle as BattleCards, with explicit empty states for non-Race sessions and "nothing in range yet". */
 export const OvertakeRadar: React.FC<OvertakeRadarProps> = ({ battles, hasGapData, hasDrs = true, onFocusBattle }) => {
   return (
     <div className="bg-[#0F1218] rounded-xl border border-f1-border p-4 flex flex-col h-full shadow-2xl">

@@ -15,6 +15,12 @@ interface PlaybackBarProps {
   onArchivingComplete?: () => void;
 }
 
+/**
+ * Top status bar — shows LIVE status or replay transport controls
+ * (play/pause/speed/scrub) depending on `playback.isLive`, plus an
+ * "ARCHIVING X%" badge while a completed session's one-time DB archival is
+ * still running (see the ingest-status poll below).
+ */
 export const PlaybackBar: React.FC<PlaybackBarProps> = ({ playback, isConnected, onControl, onArchivingComplete }) => {
   const isReplayable = !playback.isLive && playback.sessionEndMs > playback.sessionStartMs;
 

@@ -20,6 +20,12 @@ interface LiveComparisonPanelProps {
   onSelectDriver: (driverNumber: number) => void;
 }
 
+/**
+ * Always-on comparison panel for up to 3 drivers (with Top 3 / Teammates
+ * presets) — live telemetry cards plus a shared lap-time chart below, both
+ * re-fetched automatically whenever the replay/live lap advances so it
+ * fills in progressively instead of showing the session's final state.
+ */
 export const LiveComparisonPanel: React.FC<LiveComparisonPanelProps> = ({
   sessionKey,
   drivers,

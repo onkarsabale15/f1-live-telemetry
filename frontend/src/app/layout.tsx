@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: 'Production Formula 1 real-time telemetry console with 60 FPS live track positions, predicted overtakes radar, and cockpit telemetry.',
 };
 
+/** Next.js root layout — sets the dark theme shell and page metadata for the whole app. */
 export default function RootLayout({
   children,
 }: {

@@ -46,6 +46,7 @@ function findNearestMeetingKey(meetings: MeetingGroup[]): number | null {
   return meetings[meetings.length - 1].meetingKey;
 }
 
+/** Groups a flat session list into race weekends (by meeting_key), sorted newest-first with each weekend's own sessions sorted chronologically. */
 function groupByMeeting(sessions: ExplorerSession[]): MeetingGroup[] {
   const groups = new Map<number, MeetingGroup>();
   for (const s of sessions) {
@@ -70,6 +71,13 @@ function groupByMeeting(sessions: ExplorerSession[]): MeetingGroup[] {
   return list;
 }
 
+/**
+ * Modal for browsing and loading any past (or upcoming) race weekend by
+ * season. Auto-scrolls to the current/most-recently-completed weekend on
+ * open (see findNearestMeetingKey below) so the list doesn't just dump the
+ * user at the top of a 24-race season. Loading a session only affects this
+ * browser tab (see `onLoadSession`).
+ */
 export const MatchExplorer: React.FC<MatchExplorerProps> = ({ isOpen, onClose, currentSessionKey, onLoadSession }) => {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);

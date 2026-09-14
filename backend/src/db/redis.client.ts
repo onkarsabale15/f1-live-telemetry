@@ -10,6 +10,13 @@ export interface MessageBus {
   isRedisActive(): boolean;
 }
 
+/**
+ * Pub/Sub + key-value message bus backed by Redis, with an automatic
+ * in-memory fallback. Every method degrades gracefully to a local
+ * `EventEmitter`/`Map` when Redis is unreachable or errors mid-operation, so
+ * a single-process deployment keeps working without Redis at all — the only
+ * cost is losing pub/sub fan-out across multiple backend instances.
+ */
 class ResilientMessageBus implements MessageBus {
   private redisPub: Redis | null = null;
   private redisSub: Redis | null = null;
@@ -112,6 +119,7 @@ class ResilientMessageBus implements MessageBus {
     }
   }
 
+  /** Publishes to Redis if connected, otherwise emits on the in-memory bus (same-process subscribers only). */
   public async publish(channel: string, message: string): Promise<void> {
     if (this.redisConnected && this.redisPub) {
       try {
@@ -124,6 +132,14 @@ class ResilientMessageBus implements MessageBus {
     this.memoryBus.emit(channel, message);
   }
 
+  /**
+   * Registers `callback` on the in-memory bus (always) and on the Redis
+   * subscriber (once connected — channels requested before that happens are
+   * queued in `subscribedChannels` and subscribed in initRedis()'s connect
+   * handler). Messages published anywhere always land on the memory bus too
+   * (see the 'message' forwarder in initRedis()), so callers never miss an
+   * event depending on Redis's connection state.
+   */
   public async subscribe(channel: string, callback: (message: string) => void): Promise<void> {
     this.subscribedChannels.add(channel);
     this.memoryBus.on(channel, callback);
@@ -137,6 +153,7 @@ class ResilientMessageBus implements MessageBus {
     }
   }
 
+  /** Sets a key with an optional TTL, in Redis if connected or the in-memory store otherwise. */
   public async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     if (this.redisConnected && this.redisPub) {
       try {
@@ -153,6 +170,7 @@ class ResilientMessageBus implements MessageBus {
     this.memoryStore.set(key, { value, expiresAt });
   }
 
+  /** Reads a key from Redis if connected, otherwise the in-memory store (honoring its own TTL expiry). */
   public async get(key: string): Promise<string | null> {
     if (this.redisConnected && this.redisPub) {
       try {

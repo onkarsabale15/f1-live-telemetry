@@ -7,6 +7,7 @@ export interface TrackStatusStyle {
   isHazard: boolean; // pulses on the circuit map; CHEQUERED/GREEN don't
 }
 
+/** Label/color/pulse styling per track status, used by both CircuitCanvas and RaceControlFeed. */
 export const TRACK_STATUS_STYLES: Record<TrackStatus, TrackStatusStyle> = {
   GREEN: {
     label: 'TRACK CLEAR',

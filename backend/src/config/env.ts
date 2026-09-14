@@ -2,9 +2,15 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { z } from 'zod';
 
-// Backend has no .env of its own — real credentials (Redis, Postgres) live in
-// the monorepo root .env. Load that explicitly since dotenv.config() only
-// checks the current working directory (backend/ when run via `npm run dev`).
+/**
+ * Loads and validates environment variables for the backend process.
+ *
+ * Two sources are merged: the monorepo root `.env` (loaded first, explicitly
+ * by path since `dotenv.config()` only checks the current working directory)
+ * and `backend/.env` (loaded second via the bare call below, which takes
+ * precedence for any key defined in both — Node resolves relative paths
+ * against `backend/` when the process is started via `npm run dev` there).
+ */
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
@@ -25,4 +31,5 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+/** Validated, typed process environment — import this instead of reading `process.env` directly. */
 export const ENV = parsed.data;

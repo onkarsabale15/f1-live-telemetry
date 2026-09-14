@@ -12,6 +12,7 @@ interface TelemetryDashboardProps {
   hasDrs?: boolean;
 }
 
+/** Combines CockpitGauge, PedalMeters, and GearDrsIndicator into the focused driver's full cockpit telemetry row. */
 export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({ telemetry, driver, hasDrs = true }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import getPrismaClient from '../db/prisma.client';
 
+/**
+ * Demo-scoped user profile/settings endpoints backing the "Continue with
+ * Google" flow. Every handler degrades to an in-memory response when
+ * Postgres isn't configured, so the app stays usable without a database.
+ */
+
 const EmailQuerySchema = z.object({
   email: z.string().trim().email('Invalid email address'),
 });
@@ -20,6 +26,7 @@ const UpdateUserSettingsSchema = z.object({
   soundAlerts: z.boolean().optional(),
 });
 
+/** Looks up a user (with settings and bookmarks) by email, or returns a default profile if not found or the DB is unavailable. */
 export async function getUserProfile(req: Request, res: Response) {
   const parsed = EmailQuerySchema.safeParse(req.query);
   if (!parsed.success) {
@@ -62,6 +69,7 @@ export async function getUserProfile(req: Request, res: Response) {
   }
 }
 
+/** Creates or updates a user record from a completed Google sign-in, seeding default settings on first login. */
 export async function upsertGoogleUser(req: Request, res: Response) {
   const parsed = UpsertGoogleUserSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -113,6 +121,7 @@ export async function upsertGoogleUser(req: Request, res: Response) {
   }
 }
 
+/** Updates a user's saved preferences (favorite driver, speed unit, sound alerts). */
 export async function updateUserSettings(req: Request, res: Response) {
   const parsed = UpdateUserSettingsSchema.safeParse(req.body);
   if (!parsed.success) {

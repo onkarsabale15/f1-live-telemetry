@@ -56,15 +56,25 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Thin client over the public OpenF1 API (https://openf1.org) — every method
+ * here is a single resource fetch (sessions, drivers, laps, telemetry, ...),
+ * with retry/backoff on 429s and a small in-memory cache for low-churn data.
+ * Never fabricates live results: `getOfflineFallback()` only ever returns
+ * static reference data (calendar, roster), never invented positions or
+ * telemetry — see its own doc comment for why.
+ */
 export class OpenF1Service {
   private cache = new Map<string, { data: any; expiry: number }>();
 
+  /** Returns a cached value for `key` if present and not yet expired, else `null`. */
   private getFromCache<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (cached && Date.now() < cached.expiry) return cached.data as T;
     return null;
   }
 
+  /** Stores `data` under `key` with a TTL (default 5 minutes). */
   private setCache<T>(key: string, data: T, ttlSeconds: number = 300): void {
     this.cache.set(key, { data, expiry: Date.now() + ttlSeconds * 1000 });
   }
@@ -149,6 +159,7 @@ export class OpenF1Service {
     return rows;
   }
 
+  /** Coerces one CSV cell string to null / ISO-normalized timestamp / number / plain string, in that priority order. */
   private coerceCsvCell(raw: string): any {
     if (raw === '') return null;
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(raw)) return raw.replace(' ', 'T');
@@ -380,6 +391,13 @@ export class OpenF1Service {
     return session.year < 2026;
   }
 
+  /**
+   * A single hardcoded track outline used only when a session has no
+   * location data to trace its own path from yet (e.g. right at session
+   * start). `circuitKey` is accepted for a future per-circuit lookup but
+   * currently unused — every caller gets the same generic loop shape purely
+   * as a visual placeholder, never presented as that circuit's real layout.
+   */
   public getFallbackTrackPath(circuitKey?: number): { x: number; y: number }[] {
     return [
       { x: 1228, y: -1685 }, { x: 1183, y: -2179 }, { x: 1157, y: -2463 }, { x: 1108, y: -2997 },

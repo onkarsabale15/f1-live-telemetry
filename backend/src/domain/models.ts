@@ -1,5 +1,12 @@
+/**
+ * Core domain types shared across the backend — OpenF1-derived shapes, the
+ * live/replay grid state broadcast to clients, and session metadata. These
+ * mirror (and are kept in sync with) frontend/src/types/f1.ts.
+ */
+
 export type TyreCompound = 'SOFT' | 'MEDIUM' | 'HARD' | 'INTERMEDIATE' | 'WET' | 'UNKNOWN';
 
+/** A driver's stable bio/identity — name, team, headshot. Keyed by their permanent race number. */
 export interface DriverInfo {
   driverNumber: number;
   broadcastName: string;
@@ -11,6 +18,7 @@ export interface DriverInfo {
   headshotUrl?: string;
 }
 
+/** One raw OpenF1 `/location` sample — a car's world-space (x, y, z) position at an instant. */
 export interface CarLocationPoint {
   date: string;
   driverNumber: number;
@@ -19,6 +27,7 @@ export interface CarLocationPoint {
   z: number;
 }
 
+/** One raw OpenF1 `/car_data` sample — engine/pedal telemetry at an instant. */
 export interface CarTelemetryPoint {
   date: string;
   driverNumber: number;
@@ -30,6 +39,7 @@ export interface CarTelemetryPoint {
   drs: number; // 0, 8, 10, 12, 14 (OpenF1 DRS codes)
 }
 
+/** One tyre stint (a run on a single set of tyres between pit stops). */
 export interface StintInfo {
   driverNumber: number;
   stintNumber: number;
@@ -38,12 +48,18 @@ export interface StintInfo {
   lapsRun: number;
 }
 
+/** A driver's timing gaps as of a sample — to the car ahead and to the race leader. */
 export interface IntervalInfo {
   driverNumber: number;
   gapToLeader: number;
   intervalToAhead: number;
 }
 
+/**
+ * One driver's complete state at a single instant — the unit that makes up
+ * a RaceSnapshot's `grid`. Combines position, car telemetry, timing gaps,
+ * and current tyre into the shape every UI panel reads from.
+ */
 export interface DriverLiveState {
   driverNumber: number;
   position: number;
@@ -62,6 +78,7 @@ export interface DriverLiveState {
   tyreAge: number;
 }
 
+/** A predicted overtake opportunity between two adjacent cars, computed by OvertakePredictionService. */
 export interface OvertakeBattle {
   battleId: string;
   chaser: {
@@ -91,6 +108,7 @@ export interface OvertakeBattle {
   speedDelta?: number;
 }
 
+/** Axis-aligned bounding box of a circuit's traced reference points, used to scale it onto the canvas. */
 export interface CircuitBounds {
   minX: number;
   maxX: number;
@@ -100,11 +118,13 @@ export interface CircuitBounds {
   height: number;
 }
 
+/** One point along the circuit's traced outline, in raw world-space coordinates. */
 export interface TrackReferencePoint {
   x: number;
   y: number;
 }
 
+/** Static metadata for a session — circuit, timing, and which optional data/rules apply. */
 export interface SessionMeta {
   sessionKey: number;
   circuitKey: number;
@@ -124,6 +144,7 @@ export interface SessionMeta {
   trackPath: TrackReferencePoint[];
 }
 
+/** A full grid snapshot at one instant — what gets broadcast to clients on every tick (live or replay). */
 export interface RaceSnapshot {
   sessionKey: number;
   timestamp: string;

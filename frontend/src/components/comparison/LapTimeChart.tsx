@@ -26,6 +26,7 @@ const PLOT_H = VIEW_H - PAD.top - PAD.bottom;
 const DASH_PATTERNS = [undefined, '6,4', '2,3'];
 const PIT_DASH_PATTERNS = ['3,3', '1,3', '4,2'];
 
+/** SVG lap-time line chart for 2-3 drivers, with pit-stop markers and a hover tooltip comparing lap times across drivers. */
 export const LapTimeChart: React.FC<LapTimeChartProps> = ({ drivers }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [hoverLap, setHoverLap] = useState<number | null>(null);

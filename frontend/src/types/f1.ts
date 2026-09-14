@@ -1,5 +1,12 @@
+/**
+ * Shared frontend types — mirrors backend/src/domain/models.ts for the
+ * shapes that travel over the socket/REST boundary, plus a few
+ * frontend-only response shapes for the analytics panels.
+ */
+
 export type TyreCompound = 'SOFT' | 'MEDIUM' | 'HARD' | 'INTERMEDIATE' | 'WET' | 'UNKNOWN';
 
+/** A driver's stable bio/identity — name, team, headshot. Keyed by their permanent race number. */
 export interface DriverInfo {
   driverNumber: number;
   broadcastName: string;
@@ -11,6 +18,7 @@ export interface DriverInfo {
   headshotUrl?: string;
 }
 
+/** One driver's complete state at a single instant — position, telemetry, gaps, and current tyre. */
 export interface DriverLiveState {
   driverNumber: number;
   position: number;
@@ -29,6 +37,7 @@ export interface DriverLiveState {
   tyreAge: number;
 }
 
+/** A predicted overtake opportunity between two adjacent cars. */
 export interface OvertakeBattle {
   battleId: string;
   chaser: {
@@ -58,6 +67,7 @@ export interface OvertakeBattle {
   speedDelta?: number;
 }
 
+/** Axis-aligned bounding box of a circuit's traced outline, used to scale it onto the canvas. */
 export interface CircuitBounds {
   minX: number;
   maxX: number;
@@ -67,11 +77,13 @@ export interface CircuitBounds {
   height: number;
 }
 
+/** One point along the circuit's traced outline, in raw world-space coordinates. */
 export interface TrackReferencePoint {
   x: number;
   y: number;
 }
 
+/** Static metadata for a session — circuit, timing, and which optional data/rules apply. */
 export interface SessionMeta {
   sessionKey: number;
   circuitKey: number;
@@ -94,6 +106,7 @@ export interface SessionMeta {
 
 export type TrackStatus = 'GREEN' | 'YELLOW' | 'DOUBLE_YELLOW' | 'SC' | 'VSC' | 'RED' | 'CHEQUERED';
 
+/** One race control event — a flag, safety car/VSC change, penalty, or investigation note. */
 export interface RaceControlMessage {
   date: string;
   category: string;
@@ -105,6 +118,7 @@ export interface RaceControlMessage {
   message: string;
 }
 
+/** Response from GET /api/sessions/:sessionKey/race-control — the derived current track status plus the message feed. */
 export interface RaceControlResult {
   sessionKey: number;
   trackStatus: TrackStatus;
@@ -112,6 +126,7 @@ export interface RaceControlResult {
   messages: RaceControlMessage[];
 }
 
+/** Live/replay playback status for this tab's own session — see PlaybackBar and useF1Socket. */
 export interface PlaybackState {
   isPlaying: boolean;
   isLive: boolean;
@@ -128,6 +143,7 @@ export interface PlaybackState {
   positionMs: number;
 }
 
+/** A full grid snapshot at one instant — what the socket delivers on every tick (live or replay). */
 export interface RaceSnapshot {
   sessionKey: number;
   timestamp: string;
@@ -139,6 +155,7 @@ export interface RaceSnapshot {
 
 // --- Match Explorer ---
 
+/** One session row as listed by the Match Explorer — raw OpenF1 field names plus derived live/upcoming flags. */
 export interface ExplorerSession {
   session_key: number;
   session_name: string;
@@ -158,6 +175,7 @@ export interface ExplorerSession {
 
 // --- Driver Comparison ---
 
+/** One lap's timing — total and per-sector, when available. */
 export interface LapTimeEntry {
   lap: number;
   time: number;
@@ -166,6 +184,7 @@ export interface LapTimeEntry {
   sector3: number | null;
 }
 
+/** One tyre stint's lap range and compound, as shown on the strategy timeline. */
 export interface TyreStintSummary {
   stintNumber: number;
   compound: TyreCompound;
@@ -174,11 +193,13 @@ export interface TyreStintSummary {
   tyreAgeAtStart: number;
 }
 
+/** One pit stop's lap number and duration (duration `null` if not yet known). */
 export interface PitStopSummary {
   lap: number;
   duration: number | null;
 }
 
+/** Heuristic estimate of when a driver's current tyre is due for a change, and how confident that estimate is. */
 export interface PredictedTyreChange {
   compound: TyreCompound;
   currentAge: number;
@@ -188,6 +209,7 @@ export interface PredictedTyreChange {
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
+/** One driver's full comparison data — pace, stints, pit stops, and a predicted next tyre change. */
 export interface DriverComparisonSummary {
   driverNumber: number;
   info: DriverInfo | null;
@@ -201,6 +223,7 @@ export interface DriverComparisonSummary {
 
 // --- Tyre Strategy Timeline (full grid) ---
 
+/** One driver's full-race stint + pit-stop history, as shown on the timeline. */
 export interface DriverTyreStrategy {
   driverNumber: number;
   info: DriverInfo | null;
@@ -208,12 +231,14 @@ export interface DriverTyreStrategy {
   pitStops: PitStopSummary[];
 }
 
+/** Response from GET /api/sessions/:sessionKey/tyre-strategy. */
 export interface TyreStrategyResult {
   sessionKey: number;
   totalLaps: number;
   drivers: DriverTyreStrategy[];
 }
 
+/** Response from GET /api/sessions/:sessionKey/compare — up to 3 drivers' comparison data plus pace deltas. */
 export interface ComparisonResult {
   sessionKey: number;
   drivers?: DriverComparisonSummary[];

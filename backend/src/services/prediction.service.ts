@@ -3,6 +3,7 @@ import { calculateOvertakeProbability, calculateClosingRate } from '../domain/fo
 
 export type IntervalHistory = Map<number, { timestamp: number; interval: number }[]>;
 
+/** Turns a grid of driver states into a ranked list of predicted overtake opportunities between adjacent cars. */
 export class OvertakePredictionService {
   /**
    * Analyzes current live grid and calculates overtake predictions for active battles.

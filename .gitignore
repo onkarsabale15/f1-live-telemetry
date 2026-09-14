@@ -60,7 +60,7 @@ backend/prisma/*.db
 backend/prisma/migrations/dev/
 
 # ==========================================
-# Agent/tooling scratch state — not part of the application
+# AI tooling state — local to this machine/session, not part of the application
 # ==========================================
 .agents/
-.claude/scheduled_tasks.lock
+.claude/

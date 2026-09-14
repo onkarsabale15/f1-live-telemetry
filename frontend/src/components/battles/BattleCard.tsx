@@ -12,6 +12,7 @@ interface BattleCardProps {
   hasDrs?: boolean;
 }
 
+/** One predicted-overtake card — gap, closing rate, tyre/speed deltas, and an overtake-probability bar for a single chaser/defender pair. */
 export const BattleCard: React.FC<BattleCardProps> = ({ battle, onFocusBattle, hasDrs = true }) => {
   const aid = getOvertakeAidLabels(hasDrs);
   const probColor =

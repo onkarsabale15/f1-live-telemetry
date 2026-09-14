@@ -4,6 +4,7 @@ import { F1WebSocketGateway } from './websocket/socket.server';
 import { simulationEngine } from './services/simulation.service';
 import { ENV } from './config/env';
 
+/** Wires up the HTTP server, Socket.IO gateway, and the shared live-session engine, then starts listening. */
 async function bootstrap() {
   const app = createApp();
   const httpServer = http.createServer(app);

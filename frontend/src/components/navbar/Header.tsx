@@ -11,6 +11,7 @@ interface HeaderProps {
   onOpenComparison: () => void;
 }
 
+/** Top navbar — branding, the current session's name/circuit, and buttons to open Match Explorer / Driver Comparison. */
 export const Header: React.FC<HeaderProps> = ({ sessionMeta, onOpenExplorer, onOpenComparison }) => {
   return (
     <header className="bg-[#0B0E14] border-b border-f1-border py-3 px-4 sm:px-8 flex items-center justify-between shadow-xl">

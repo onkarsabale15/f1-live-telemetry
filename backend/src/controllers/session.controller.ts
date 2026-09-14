@@ -18,6 +18,7 @@ const ExplorerQuerySchema = z.object({
     .optional(),
 });
 
+/** Recent sessions for the current year, unfiltered — the general-purpose session list. */
 export async function getSessions(req: Request, res: Response) {
   try {
     const sessions = await openF1Service.getRecentSessions();

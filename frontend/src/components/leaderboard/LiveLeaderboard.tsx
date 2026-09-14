@@ -13,6 +13,7 @@ interface LiveLeaderboardProps {
   onSelectDriver: (driverNumber: number) => void;
 }
 
+/** Full-grid classification table — position, interval, gap to leader, speed, and current tyre for every driver, sorted by position. */
 export const LiveLeaderboard: React.FC<LiveLeaderboardProps> = ({
   grid,
   drivers,

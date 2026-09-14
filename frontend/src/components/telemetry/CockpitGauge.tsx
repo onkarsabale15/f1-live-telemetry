@@ -8,6 +8,7 @@ interface CockpitGaugeProps {
   driver: DriverInfo | undefined;
 }
 
+/** Speed/gear/RPM readout for the focused driver, with an authentic 15-LED shift-light bar calibrated to the 1.6L V6 hybrid PU's redline. */
 export const CockpitGauge: React.FC<CockpitGaugeProps> = ({ telemetry, driver }) => {
   const speed = telemetry?.speed || 0;
   const rpm = telemetry?.rpm || 0;

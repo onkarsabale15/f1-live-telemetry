@@ -24,6 +24,13 @@ interface InterpolatedCar {
   position: number;
 }
 
+/**
+ * The 2D track map — draws the circuit outline (recoloring/pulsing for an
+ * active flag or safety car period) and every car as a LERP-animated dot on
+ * an HTML canvas at 60fps, smoothing the ~1-4Hz server updates into fluid
+ * motion. Click-to-focus hit-tests against each car's interpolated
+ * position, not its last raw server position.
+ */
 export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   sessionMeta,
   grid,

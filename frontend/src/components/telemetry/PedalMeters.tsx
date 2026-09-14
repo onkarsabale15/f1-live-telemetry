@@ -7,6 +7,7 @@ interface PedalMetersProps {
   brake: number; // 0 - 100
 }
 
+/** Throttle/brake pressure bars for the focused driver, 0-100%. */
 export const PedalMeters: React.FC<PedalMetersProps> = ({ throttle, brake }) => {
   return (
     <div className="bg-[#121620] p-4 rounded-xl border border-f1-border flex flex-col justify-between">

@@ -15,6 +15,11 @@ interface TyreStrategyTimelineProps {
   onSelectDriver?: (driverNumber: number) => void;
 }
 
+/**
+ * Full-grid Gantt-style strip showing every driver's tyre stints and pit
+ * stops across the whole race, sorted by current position, with a moving
+ * marker for the current lap during replay/live playback.
+ */
 export const TyreStrategyTimeline: React.FC<TyreStrategyTimelineProps> = ({
   sessionKey,
   currentLap,
