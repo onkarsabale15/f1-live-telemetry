@@ -176,7 +176,11 @@ export const BattleCard: React.FC<BattleCardProps> = ({ battle, onFocusBattle, h
         <span>
           Est. Pass:{' '}
           <strong className="text-white">
-            {battle.estLapsToPass < 20 ? `${battle.estLapsToPass} Laps` : 'Stalemate'}
+            {battle.estLapsToPass < 20
+              ? `${battle.estLapsToPass} Laps${
+                  battle.estTimeToPassSeconds != null ? ` (~${Math.round(battle.estTimeToPassSeconds)}s)` : ''
+                }`
+              : 'Stalemate'}
           </strong>
         </span>
         <span className="text-[10px] text-slate-500 flex items-center gap-0.5 group-hover:text-slate-300">

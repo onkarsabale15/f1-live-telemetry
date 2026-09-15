@@ -65,6 +65,10 @@ export interface OvertakeBattle {
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   drsActive?: boolean;
   speedDelta?: number;
+  /** Defender's last lap time minus chaser's (s/lap) — positive means the chaser is genuinely lapping faster right now. */
+  paceDeltaPerLap?: number;
+  /** estLapsToPass converted to a wall-clock estimate using the pair's own recent lap times. Undefined once estLapsToPass reads as a "stalemate". */
+  estTimeToPassSeconds?: number;
 }
 
 /** Axis-aligned bounding box of a circuit's traced outline, used to scale it onto the canvas. */

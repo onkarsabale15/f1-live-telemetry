@@ -1062,6 +1062,31 @@ export class SimulationEngine extends EventEmitter {
     }
   }
 
+  /**
+   * Each driver's most recently completed lap time (seconds) as of
+   * `this.currentLap` — see replay-session.service.ts's
+   * `computeLapTimesAtLap` (identical logic, duplicated here to match this
+   * class's existing stateful-recompute pattern rather than the stateless
+   * replay functions it otherwise mirrors, e.g. `updateStints`/`getLapAtTime`).
+   */
+  private getLapTimesAtCurrentLap(): Map<number, number> {
+    const latestByDriver = new Map<number, any>();
+    for (const lap of this.lapsCache) {
+      if (typeof lap.lap_duration !== 'number' || lap.lap_duration <= 0) continue;
+      if (lap.is_pit_out_lap) continue;
+      if ((lap.lap_number || 0) >= this.currentLap) continue;
+      const existing = latestByDriver.get(lap.driver_number);
+      if (!existing || (lap.lap_number || 0) > (existing.lap_number || 0)) {
+        latestByDriver.set(lap.driver_number, lap);
+      }
+    }
+    const result = new Map<number, number>();
+    for (const [driverNum, lap] of latestByDriver) {
+      result.set(driverNum, lap.lap_duration);
+    }
+    return result;
+  }
+
   private buildSnapshot(): RaceSnapshot {
     const liveGrid: DriverLiveState[] = [];
 
@@ -1111,7 +1136,8 @@ export class SimulationEngine extends EventEmitter {
           sampleTimeMs,
           this.intervalHistory,
           this.hasDrs,
-          this.probabilityHistory
+          this.probabilityHistory,
+          this.getLapTimesAtCurrentLap()
         )
       : [];
 

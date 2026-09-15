@@ -13,6 +13,30 @@ export type ProbabilityHistory = Map<string, number>;
 // single-sample noise from sparse OpenF1 gap updates.
 const PROBABILITY_SMOOTHING_ALPHA = 0.35;
 
+// How much of the "closing rate" fed into the probability model comes from
+// the interval-history regression (reacts fast, but noisy — a single lapped
+// car or one sparse sample can move it) vs. the lap-time pace delta (reacts
+// only once per lap, but reflects genuinely sustained pace — the same
+// signal broadcast "closing at X/lap" graphics are built from). Weighted
+// toward pace on purpose: a car that is simply faster right now is a much
+// more reliable predictor than one noisy gap sample.
+const INTERVAL_TREND_WEIGHT = 0.4;
+const PACE_DELTA_WEIGHT = 0.6;
+
+// A pair sitting within the scanning window but not actually catching isn't
+// a "battle" a broadcast would highlight — it's just traffic. Below this
+// effective closing rate (s/lap), a pair is dropped unless it's already in
+// the DRS/Override range (gap <= 1.0s), where an overtake stays a live
+// possibility even without a sustained trend (a mistake can happen any lap).
+const MIN_MEANINGFUL_CLOSING_RATE = 0.1;
+
+// Upper bound on how many battles are surfaced at once, sorted by
+// probability. A tightly bunched field can still leave a couple dozen pairs
+// inside the scanning window even after the closing-rate filter above —
+// real broadcasts never show more than a handful of fights simultaneously,
+// and a wall of 20 "active duels" is noise, not signal.
+const MAX_SURFACED_BATTLES = 8;
+
 /** Turns a grid of driver states into a ranked list of predicted overtake opportunities between adjacent cars. */
 export class OvertakePredictionService {
   /**
@@ -38,6 +62,11 @@ export class OvertakePredictionService {
    *   state across independent viewers. Clear it whenever the caller also
    *   clears `intervalHistory` (e.g. on a replay seek), since a smoothed
    *   value from a different point in the race is stale, not a trend.
+   * @param lapTimes Each driver's most recently completed lap time (seconds)
+   *   as of this snapshot — see `computeLapTimesAtLap` in
+   *   replay-session.service.ts. Unlike `intervalHistory`/`probabilityHistory`
+   *   this isn't cross-tick state the caller needs to own; it's recomputed
+   *   fresh from the already-cached laps data every call.
    */
   public analyzeBattles(
     grid: DriverLiveState[],
@@ -45,7 +74,8 @@ export class OvertakePredictionService {
     sampleTimeMs: number = Date.now(),
     intervalHistory: IntervalHistory = new Map(),
     hasDrs: boolean = true,
-    probabilityHistory: ProbabilityHistory = new Map()
+    probabilityHistory: ProbabilityHistory = new Map(),
+    lapTimes: Map<number, number> = new Map()
   ): OvertakeBattle[] {
     const battles: OvertakeBattle[] = [];
     const now = sampleTimeMs;
@@ -78,6 +108,26 @@ export class OvertakePredictionService {
         closingRate = calculateClosingRateTrend(history, 80);
       }
 
+      // Blend in actual lap-time pace, when both drivers have a completed
+      // lap to compare — this is the same "who's genuinely faster right
+      // now" signal a broadcast's overtake countdown is built from, and
+      // it's far more stable than the interval trend alone (which reacts to
+      // one lapped car or one noisy sample just as readily as a real pace
+      // difference).
+      const chaserLapTime = lapTimes.get(chaserState.driverNumber);
+      const defenderLapTime = lapTimes.get(defenderState.driverNumber);
+      const paceDeltaPerLap =
+        chaserLapTime != null &&
+        defenderLapTime != null &&
+        Number.isFinite(chaserLapTime) &&
+        Number.isFinite(defenderLapTime)
+          ? Number((defenderLapTime - chaserLapTime).toFixed(3))
+          : undefined;
+      const effectiveClosingRate =
+        paceDeltaPerLap != null
+          ? Number((closingRate * INTERVAL_TREND_WEIGHT + paceDeltaPerLap * PACE_DELTA_WEIGHT).toFixed(2))
+          : closingRate;
+
       // If within battle window (<= 2.2 seconds and non-negative, including side-by-side gap = 0)
       if (Number.isFinite(gap) && gap >= 0 && gap <= 2.2) {
         const chaserInfo = driversMap.get(chaserState.driverNumber);
@@ -87,7 +137,7 @@ export class OvertakePredictionService {
           const { probability: rawProbability, estLapsToPass, drsEligible, tyreDeltaFactor } =
             calculateOvertakeProbability(
               gap,
-              closingRate,
+              effectiveClosingRate,
               chaserState.compound,
               chaserState.tyreAge,
               defenderState.compound,
@@ -111,11 +161,22 @@ export class OvertakePredictionService {
           probabilityHistory.set(battleId, probability);
 
           let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
-          if (probability >= 70 || (drsEligible && closingRate > 0.2)) {
+          if (probability >= 70 || (drsEligible && effectiveClosingRate > 0.2)) {
             confidence = 'HIGH';
           } else if (probability < 30) {
             confidence = 'LOW';
           }
+
+          // Convert the lap-count estimate into a wall-clock one too — "X
+          // laps" and "~Ys" are the same broadcast-style prediction, just in
+          // the two units viewers actually think in. Uses the pair's own
+          // recent lap times when known, since a driver's average pace can
+          // be meaningfully faster or slower than the 80s fallback the laps
+          // formula otherwise assumes.
+          const referenceLapTimeSeconds =
+            chaserLapTime != null && defenderLapTime != null ? (chaserLapTime + defenderLapTime) / 2 : 80;
+          const estTimeToPassSeconds =
+            estLapsToPass < 20 ? Number((estLapsToPass * referenceLapTimeSeconds).toFixed(1)) : undefined;
 
           battles.push({
             battleId,
@@ -136,7 +197,7 @@ export class OvertakePredictionService {
               tyreAge: defenderState.tyreAge,
             },
             gap: gap <= 0 ? 0.01 : Number(gap.toFixed(2)),
-            closingRate,
+            closingRate: effectiveClosingRate,
             drsEligible,
             tyreDeltaFactor,
             probability,
@@ -144,13 +205,23 @@ export class OvertakePredictionService {
             confidence,
             drsActive: chaserState.drs,
             speedDelta: chaserState.speed - defenderState.speed,
+            paceDeltaPerLap,
+            estTimeToPassSeconds,
           });
         }
       }
     }
 
-    // Sort by battle excitement: highest overtake probability first
-    return battles.sort((a, b) => b.probability - a.probability);
+    // Curate down to genuine fights before ranking — a pair merely sitting
+    // inside the scanning window with no closing trend and no DRS/Override
+    // threat is traffic, not a battle a broadcast would ever flag. Even
+    // after that filter, a heavily bunched field can still leave far more
+    // "active" pairs than anyone would usefully track at once, so cap the
+    // surfaced list the same way a broadcast never runs more than a
+    // handful of overtake graphics simultaneously.
+    const genuineBattles = battles.filter((b) => b.drsEligible || b.closingRate > MIN_MEANINGFUL_CLOSING_RATE);
+
+    return genuineBattles.sort((a, b) => b.probability - a.probability).slice(0, MAX_SURFACED_BATTLES);
   }
 }
 

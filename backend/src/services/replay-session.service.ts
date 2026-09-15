@@ -57,6 +57,36 @@ export function computeStintsAtLap(
   return result;
 }
 
+/**
+ * Each driver's most recently *completed* lap time (seconds) as of
+ * `currentLap` — the same real, sustained pace signal F1 broadcasts derive
+ * their "closing at X/lap, N laps to catch" graphics from, as opposed to the
+ * gap-to-ahead's instant-to-instant movement (which is noisy: a lapped car,
+ * a defensive line through one corner, or a single sparse OpenF1 sample can
+ * all move it without reflecting a genuine pace difference). Pit out-laps
+ * are excluded — a pit exit's time reflects the pit lane, not race pace —
+ * matching the same filter comparison.controller.ts already applies to lap
+ * time charts. The lap still in progress (`lap_number >= currentLap`) is
+ * excluded too, since it isn't a completed time yet.
+ */
+export function computeLapTimesAtLap(lapsCache: any[], currentLap: number): Map<number, number> {
+  const latestByDriver = new Map<number, any>();
+  for (const lap of lapsCache) {
+    if (typeof lap.lap_duration !== 'number' || lap.lap_duration <= 0) continue;
+    if (lap.is_pit_out_lap) continue;
+    if ((lap.lap_number || 0) >= currentLap) continue;
+    const existing = latestByDriver.get(lap.driver_number);
+    if (!existing || (lap.lap_number || 0) > (existing.lap_number || 0)) {
+      latestByDriver.set(lap.driver_number, lap);
+    }
+  }
+  const result = new Map<number, number>();
+  for (const [driverNum, lap] of latestByDriver) {
+    result.set(driverNum, lap.lap_duration);
+  }
+  return result;
+}
+
 export interface ReplaySnapshotParams {
   sessionKey: number;
   atMs: number;
@@ -75,6 +105,7 @@ export async function buildReplaySnapshot(params: ReplaySnapshotParams): Promise
   const dbSnapshot = await replayDbService.getSnapshotAtTime(sessionKey, atMs);
   const currentLap = getLapAtTime(lapsCache, atMs);
   const stints = computeStintsAtLap(stintsCache, currentLap);
+  const lapTimes = computeLapTimesAtLap(lapsCache, currentLap);
 
   const grid: DriverLiveState[] = [];
   for (const driver of drivers) {
@@ -107,7 +138,15 @@ export async function buildReplaySnapshot(params: ReplaySnapshotParams): Promise
 
   const driversMap = new Map(drivers.map((d) => [d.driverNumber, d]));
   const activeBattles = hasGapData
-    ? overtakePredictionService.analyzeBattles(grid, driversMap, atMs, intervalHistory, hasDrs, probabilityHistory)
+    ? overtakePredictionService.analyzeBattles(
+        grid,
+        driversMap,
+        atMs,
+        intervalHistory,
+        hasDrs,
+        probabilityHistory,
+        lapTimes
+      )
     : [];
 
   return {
