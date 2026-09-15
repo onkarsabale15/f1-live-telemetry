@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { DriverLiveState, DriverInfo, SessionMeta, RaceSnapshot, TyreCompound } from '../domain/models';
 import { computeCircuitBounds } from '../domain/formulas';
 import { openF1Service, OpenF1Session } from './openf1.service';
-import { overtakePredictionService, IntervalHistory } from './prediction.service';
+import { overtakePredictionService, IntervalHistory, ProbabilityHistory } from './prediction.service';
 import { messageBus } from '../db/redis.client';
 import getPrismaClient from '../db/prisma.client';
 import { ingestionService } from './ingestion.service';
@@ -98,6 +98,7 @@ export class SimulationEngine extends EventEmitter {
   private driverPositions = new Map<number, number>();
   private driverStints = new Map<number, { compound: TyreCompound; age: number }>();
   private intervalHistory: IntervalHistory = new Map();
+  private probabilityHistory: ProbabilityHistory = new Map();
 
   private currentLap = 0;
   private totalLaps = 0;
@@ -201,6 +202,7 @@ export class SimulationEngine extends EventEmitter {
     }
     this.pendingSeekMs = null;
     this.intervalHistory.clear();
+    this.probabilityHistory.clear();
 
     this.sessionData = session;
     this.isLive = openF1Service.isSessionLive(session);
@@ -1103,15 +1105,15 @@ export class SimulationEngine extends EventEmitter {
     // for why mixing the two produces nonsensical closing rates.
     const sampleTimeMs = this.isLive ? Date.now() : this.replayPositionMs;
     const activeBattles = this.hasGapData
-      ? overtakePredictionService.analyzeBattles(liveGrid, this.driversMap, sampleTimeMs, this.intervalHistory)
+      ? overtakePredictionService.analyzeBattles(
+          liveGrid,
+          this.driversMap,
+          sampleTimeMs,
+          this.intervalHistory,
+          this.hasDrs,
+          this.probabilityHistory
+        )
       : [];
-    const carMap = new Map(liveGrid.map((c) => [c.driverNumber, c]));
-    activeBattles.forEach((battle) => {
-      const chaserCar = carMap.get(battle.chaser.driverNumber);
-      const defenderCar = carMap.get(battle.defender.driverNumber);
-      if (chaserCar) battle.drsActive = chaserCar.drs;
-      if (chaserCar && defenderCar) battle.speedDelta = chaserCar.speed - defenderCar.speed;
-    });
 
     return {
       sessionKey: this.sessionData?.session_key || this.sessionMeta?.sessionKey || 0,

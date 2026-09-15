@@ -1,7 +1,17 @@
 import { DriverLiveState, DriverInfo, OvertakeBattle } from '../domain/models';
-import { calculateOvertakeProbability, calculateClosingRate } from '../domain/formulas';
+import { calculateOvertakeProbability, calculateClosingRateTrend } from '../domain/formulas';
 
 export type IntervalHistory = Map<number, { timestamp: number; interval: number }[]>;
+
+/** Last smoothed probability per battle (keyed by `${chaserNumber}-${defenderNumber}`), owned by the caller — see `analyzeBattles`' probabilityHistory param. */
+export type ProbabilityHistory = Map<string, number>;
+
+// Exponential-moving-average weight applied to each tick's freshly computed
+// probability against the previous smoothed value. Lower = steadier/less
+// jittery display, higher = more responsive to a sudden real change (e.g.
+// a lockup). 0.35 settles a step change in ~4-5 ticks while still damping
+// single-sample noise from sparse OpenF1 gap updates.
+const PROBABILITY_SMOOTHING_ALPHA = 0.35;
 
 /** Turns a grid of driver states into a ranked list of predicted overtake opportunities between adjacent cars. */
 export class OvertakePredictionService {
@@ -19,12 +29,23 @@ export class OvertakePredictionService {
    *   independent replay viewer needs its own history, since interleaving
    *   two different timelines' samples (e.g. two clients scrubbing the same
    *   session at different positions) would corrupt the closing-rate trend.
+   * @param hasDrs Whether this session's era reports DRS activation via
+   *   telemetry (false for 2026+ Manual Override Mode) — see
+   *   `calculateOvertakeProbability`'s `hasDrsTelemetry` param.
+   * @param probabilityHistory Last smoothed probability per battle, owned by
+   *   the caller for the same reason as `intervalHistory` — keeps the
+   *   displayed probability from jittering tick to tick without mixing
+   *   state across independent viewers. Clear it whenever the caller also
+   *   clears `intervalHistory` (e.g. on a replay seek), since a smoothed
+   *   value from a different point in the race is stale, not a trend.
    */
   public analyzeBattles(
     grid: DriverLiveState[],
     driversMap: Map<number, DriverInfo>,
-    sampleTimeMs: number,
-    intervalHistory: IntervalHistory
+    sampleTimeMs: number = Date.now(),
+    intervalHistory: IntervalHistory = new Map(),
+    hasDrs: boolean = true,
+    probabilityHistory: ProbabilityHistory = new Map()
   ): OvertakeBattle[] {
     const battles: OvertakeBattle[] = [];
     const now = sampleTimeMs;
@@ -49,12 +70,12 @@ export class OvertakePredictionService {
       // Keep only last 30 seconds of history
       if (history.length > 30) history.shift();
 
-      // Compute closing rate (seconds gained per lap / per 30s)
+      // Compute closing rate via regression over the whole history window
+      // (not just a two-point diff) so a single noisy gap sample can't flip
+      // the sign of the trend — see calculateClosingRateTrend's doc.
       let closingRate = 0;
       if (history.length >= 5) {
-        const oldest = history[0];
-        const timeDiffSeconds = Math.max(1, (now - oldest.timestamp) / 1000);
-        closingRate = calculateClosingRate(oldest.interval, gap, timeDiffSeconds, 80);
+        closingRate = calculateClosingRateTrend(history, 80);
       }
 
       // If within battle window (<= 2.2 seconds and non-negative, including side-by-side gap = 0)
@@ -63,16 +84,31 @@ export class OvertakePredictionService {
         const defenderInfo = driversMap.get(defenderState.driverNumber);
 
         if (chaserInfo && defenderInfo) {
-          const { probability, estLapsToPass, drsEligible, tyreDeltaFactor } = calculateOvertakeProbability(
-            gap,
-            closingRate,
-            chaserState.compound,
-            chaserState.tyreAge,
-            defenderState.compound,
-            defenderState.tyreAge,
-            chaserState.speed,
-            defenderState.speed
-          );
+          const { probability: rawProbability, estLapsToPass, drsEligible, tyreDeltaFactor } =
+            calculateOvertakeProbability(
+              gap,
+              closingRate,
+              chaserState.compound,
+              chaserState.tyreAge,
+              defenderState.compound,
+              defenderState.tyreAge,
+              chaserState.speed,
+              defenderState.speed,
+              chaserState.drs,
+              hasDrs
+            );
+
+          const battleId = `${chaserState.driverNumber}-${defenderState.driverNumber}`;
+
+          // Smooth the displayed probability against its own last value
+          // (EMA) so it settles into a trend instead of jumping around on
+          // every tick's fresh (and individually noisy) inputs.
+          const prevSmoothed = probabilityHistory.get(battleId);
+          const probability =
+            prevSmoothed == null
+              ? rawProbability
+              : Math.round(prevSmoothed + PROBABILITY_SMOOTHING_ALPHA * (rawProbability - prevSmoothed));
+          probabilityHistory.set(battleId, probability);
 
           let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
           if (probability >= 70 || (drsEligible && closingRate > 0.2)) {
@@ -82,7 +118,7 @@ export class OvertakePredictionService {
           }
 
           battles.push({
-            battleId: `${chaserState.driverNumber}-${defenderState.driverNumber}`,
+            battleId,
             chaser: {
               driverNumber: chaserState.driverNumber,
               code: chaserInfo.nameAcronym,
@@ -106,6 +142,8 @@ export class OvertakePredictionService {
             probability,
             estLapsToPass,
             confidence,
+            drsActive: chaserState.drs,
+            speedDelta: chaserState.speed - defenderState.speed,
           });
         }
       }

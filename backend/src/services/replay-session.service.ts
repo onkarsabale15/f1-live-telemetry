@@ -4,7 +4,7 @@ import getPrismaClient from '../db/prisma.client';
 import { openF1Service, OpenF1Session } from './openf1.service';
 import { replayDbService } from './replay-db.service';
 import { ingestionService } from './ingestion.service';
-import { overtakePredictionService, IntervalHistory } from './prediction.service';
+import { overtakePredictionService, IntervalHistory, ProbabilityHistory } from './prediction.service';
 
 /**
  * Stateless per-request replay support — every function here takes whatever
@@ -64,12 +64,14 @@ export interface ReplaySnapshotParams {
   lapsCache: any[];
   stintsCache: any[];
   hasGapData: boolean;
+  hasDrs: boolean;
   intervalHistory: IntervalHistory;
+  probabilityHistory: ProbabilityHistory;
 }
 
 /** The DB-backed equivalent of SimulationEngine.buildSnapshot() — computed fresh per call, no shared state. */
 export async function buildReplaySnapshot(params: ReplaySnapshotParams): Promise<RaceSnapshot> {
-  const { sessionKey, atMs, drivers, lapsCache, stintsCache, hasGapData, intervalHistory } = params;
+  const { sessionKey, atMs, drivers, lapsCache, stintsCache, hasGapData, hasDrs, intervalHistory, probabilityHistory } = params;
   const dbSnapshot = await replayDbService.getSnapshotAtTime(sessionKey, atMs);
   const currentLap = getLapAtTime(lapsCache, atMs);
   const stints = computeStintsAtLap(stintsCache, currentLap);
@@ -105,15 +107,8 @@ export async function buildReplaySnapshot(params: ReplaySnapshotParams): Promise
 
   const driversMap = new Map(drivers.map((d) => [d.driverNumber, d]));
   const activeBattles = hasGapData
-    ? overtakePredictionService.analyzeBattles(grid, driversMap, atMs, intervalHistory)
+    ? overtakePredictionService.analyzeBattles(grid, driversMap, atMs, intervalHistory, hasDrs, probabilityHistory)
     : [];
-  const carMap = new Map(grid.map((c) => [c.driverNumber, c]));
-  activeBattles.forEach((battle) => {
-    const chaserCar = carMap.get(battle.chaser.driverNumber);
-    const defenderCar = carMap.get(battle.defender.driverNumber);
-    if (chaserCar) battle.drsActive = chaserCar.drs;
-    if (chaserCar && defenderCar) battle.speedDelta = chaserCar.speed - defenderCar.speed;
-  });
 
   return {
     sessionKey,

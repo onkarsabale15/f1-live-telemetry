@@ -1,6 +1,6 @@
 import { RaceSnapshot, DriverLiveState, OvertakeBattle, SessionMeta, DriverInfo } from '../domain/models';
 import { PlaybackState } from '../services/simulation.service';
-import { IntervalHistory } from '../services/prediction.service';
+import { IntervalHistory, ProbabilityHistory } from '../services/prediction.service';
 
 export interface ServerToClientEvents {
   'f1:v1:session_init': (data: { sessionMeta: SessionMeta; drivers: DriverInfo[]; playback: PlaybackState }) => void;
@@ -41,6 +41,7 @@ export interface ReplayState {
   hasGapData: boolean;
   hasDrs: boolean;
   intervalHistory: IntervalHistory;
+  probabilityHistory: ProbabilityHistory;
 }
 
 export interface SocketData {

@@ -103,7 +103,9 @@ export class F1WebSocketGateway {
         lapsCache: replay.lapsCache,
         stintsCache: replay.stintsCache,
         hasGapData: replay.hasGapData,
+        hasDrs: replay.hasDrs,
         intervalHistory: replay.intervalHistory,
+        probabilityHistory: replay.probabilityHistory,
       });
       if (!socket.connected) return;
       socket.emit('f1:v1:grid_snapshot', snapshot as RaceSnapshot);
@@ -189,6 +191,7 @@ export class F1WebSocketGateway {
         hasGapData: resolved.hasGapData,
         hasDrs: resolved.hasDrs,
         intervalHistory: new Map(),
+        probabilityHistory: new Map(),
       };
 
       const sessionMeta = simulationEngine.getSessionMeta();
@@ -226,6 +229,7 @@ export class F1WebSocketGateway {
         hasGapData: resolved.hasGapData,
         hasDrs: resolved.hasDrs,
         intervalHistory: new Map(),
+        probabilityHistory: new Map(),
       };
       socket.emit('f1:v1:session_init', {
         sessionMeta: meta.sessionMeta,
@@ -256,6 +260,7 @@ export class F1WebSocketGateway {
         hasGapData: resolved.hasGapData,
         hasDrs: resolved.hasDrs,
         intervalHistory: new Map(),
+        probabilityHistory: new Map(),
       };
       socket.emit('f1:v1:session_init', {
         sessionMeta: archiving.sessionMeta,
@@ -370,6 +375,7 @@ export class F1WebSocketGateway {
             const targetMs = replay.sessionStartMs + progress * (replay.sessionEndMs - replay.sessionStartMs);
             replay.positionMs = targetMs;
             replay.intervalHistory.clear();
+            replay.probabilityHistory.clear();
             socket.emit('f1:v1:playback_state', this.buildPlaybackState(replay));
 
             // Debounced per socket, same rationale as the old global seek:
