@@ -1,0 +1,84 @@
+# Runs the entire stack locally — Postgres, Redis, backend, frontend — with
+# a single `docker compose up --build`. No external database or cache
+# needed; the app still needs internet access to reach the public OpenF1 API
+# for live F1 data (there's no way around that — it's the whole data source).
+#
+# See README.md "Quick start (Docker)" for usage.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: f1_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - f1_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/f1_db
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      JWT_SECRET: docker-local-dev-jwt-secret-change-me
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle at build time — must be a host-reachable
+        # URL since the browser calls it directly, not the Docker network's
+        # internal "backend" hostname.
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:4000
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: docker-local-dev-nextauth-secret-change-me
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  f1_postgres_data:
