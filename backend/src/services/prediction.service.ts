@@ -23,18 +23,14 @@ const PROBABILITY_SMOOTHING_ALPHA = 0.35;
 const INTERVAL_TREND_WEIGHT = 0.4;
 const PACE_DELTA_WEIGHT = 0.6;
 
-// A pair sitting within the scanning window but not actually catching isn't
-// a "battle" a broadcast would highlight — it's just traffic. Below this
-// effective closing rate (s/lap), a pair is dropped unless it's already in
-// the DRS/Override range (gap <= 1.0s), where an overtake stays a live
-// possibility even without a sustained trend (a mistake can happen any lap).
-const MIN_MEANINGFUL_CLOSING_RATE = 0.1;
+// Only battles with a real chance of actually happening are worth
+// surfacing — a pair merely sitting inside the scanning window is traffic,
+// not a fight a broadcast would flag.
+const HIGH_PROBABILITY_THRESHOLD = 70;
 
 // Upper bound on how many battles are surfaced at once, sorted by
-// probability. A tightly bunched field can still leave a couple dozen pairs
-// inside the scanning window even after the closing-rate filter above —
-// real broadcasts never show more than a handful of fights simultaneously,
-// and a wall of 20 "active duels" is noise, not signal.
+// probability — a safety net for the rare case where many pairs clear the
+// probability bar simultaneously (e.g. a chaotic multi-car photo finish).
 const MAX_SURFACED_BATTLES = 8;
 
 /** Turns a grid of driver states into a ranked list of predicted overtake opportunities between adjacent cars. */
@@ -212,16 +208,12 @@ export class OvertakePredictionService {
       }
     }
 
-    // Curate down to genuine fights before ranking — a pair merely sitting
-    // inside the scanning window with no closing trend and no DRS/Override
-    // threat is traffic, not a battle a broadcast would ever flag. Even
-    // after that filter, a heavily bunched field can still leave far more
-    // "active" pairs than anyone would usefully track at once, so cap the
-    // surfaced list the same way a broadcast never runs more than a
-    // handful of overtake graphics simultaneously.
-    const genuineBattles = battles.filter((b) => b.drsEligible || b.closingRate > MIN_MEANINGFUL_CLOSING_RATE);
+    // Only surface battles with a genuine (>70%) chance of an overtake —
+    // the rest is capped as a safety net in case many pairs clear that bar
+    // at once.
+    const highProbabilityBattles = battles.filter((b) => b.probability > HIGH_PROBABILITY_THRESHOLD);
 
-    return genuineBattles.sort((a, b) => b.probability - a.probability).slice(0, MAX_SURFACED_BATTLES);
+    return highProbabilityBattles.sort((a, b) => b.probability - a.probability).slice(0, MAX_SURFACED_BATTLES);
   }
 }
 
