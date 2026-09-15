@@ -254,9 +254,9 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
       className="relative w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-[#0F1218] rounded-xl border border-f1-border overflow-hidden shadow-2xl flex items-center justify-center"
     >
       {/* Circuit Header Overlay */}
-      <div className="absolute top-3 left-4 z-10 flex items-center gap-3">
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+      <div className="absolute top-3 left-3 sm:left-4 z-10 flex items-center gap-2 sm:gap-3 max-w-[55%] sm:max-w-none">
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-300 truncate">
           {sessionMeta ? `${sessionMeta.location} • ${sessionMeta.circuitShortName}` : 'Circuit Tracking Engine'}
         </span>
       </div>
@@ -264,7 +264,7 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
       {/* Flag / Safety Car Status Banner */}
       {trackStatus && trackStatus !== 'GREEN' && (
         <div
-          className={`absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono font-black text-[11px] uppercase tracking-wide shadow-lg ${
+          className={`absolute top-11 sm:top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono font-black text-[11px] uppercase tracking-wide shadow-lg ${
             getTrackStatusStyle(trackStatus).badgeClass
           } ${getTrackStatusStyle(trackStatus).isHazard ? 'animate-pulse' : ''}`}
         >
@@ -274,7 +274,7 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
       )}
 
       {/* Speed Legend */}
-      <div className="absolute top-3 right-4 z-10 text-[11px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded border border-slate-700/60 backdrop-blur-sm">
+      <div className="hidden sm:block absolute top-3 right-4 z-10 text-[11px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded border border-slate-700/60 backdrop-blur-sm">
         Sampling: <span className="text-emerald-400 font-semibold">4.0 Hz (60 FPS LERP)</span>
       </div>
 

@@ -93,7 +93,7 @@ export const PlaybackBar: React.FC<PlaybackBarProps> = ({ playback, isConnected,
           )}
         </div>
       ) : isReplayable ? (
-        <div className="flex-1 min-w-[280px] flex items-center gap-3">
+        <div className="flex-1 min-w-[240px] flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Replay badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700 text-slate-200 rounded-lg text-[11px] font-bold font-mono whitespace-nowrap">
             <Satellite className="w-3.5 h-3.5" />
@@ -145,7 +145,7 @@ export const PlaybackBar: React.FC<PlaybackBarProps> = ({ playback, isConnected,
           </div>
 
           {/* Scrub slider */}
-          <div className="flex-1 min-w-[140px] flex items-center gap-2">
+          <div className="basis-full sm:basis-auto flex-1 min-w-[140px] flex items-center gap-2">
             <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
               {playback.currentTick > 0 ? `L${playback.currentTick}` : ''} {formatDuration(elapsed)}
             </span>

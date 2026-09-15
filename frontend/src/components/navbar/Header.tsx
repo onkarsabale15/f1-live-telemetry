@@ -46,18 +46,20 @@ export const Header: React.FC<HeaderProps> = ({ sessionMeta, onOpenExplorer, onO
       )}
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
         <button
           onClick={onOpenExplorer}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 rounded-lg text-xs font-mono font-semibold transition-colors"
+          title="Match Explorer"
+          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 rounded-lg text-xs font-mono font-semibold transition-colors"
         >
-          <CalendarDays className="w-3.5 h-3.5" /> Match Explorer
+          <CalendarDays className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Match Explorer</span>
         </button>
         <button
           onClick={onOpenComparison}
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 rounded-lg text-xs font-mono font-semibold transition-colors"
+          title="Compare Drivers"
+          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 rounded-lg text-xs font-mono font-semibold transition-colors"
         >
-          <Users className="w-3.5 h-3.5" /> Compare Drivers
+          <Users className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Compare Drivers</span>
         </button>
         <GoogleAuthWidget />
       </div>
